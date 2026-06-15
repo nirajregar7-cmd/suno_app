@@ -1,0 +1,110 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User session profile details",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "nickname": { "type": "string" },
+        "avatar": { "type": "string" },
+        "isAdmin": { "type": "boolean" },
+        "ageRange": { "type": "string" },
+        "gender": { "type": "string" },
+        "country": { "type": "string" },
+        "language": { "type": "string" },
+        "interests": { "type": "array" },
+        "bio": { "type": "string" },
+        "trustScore": { "type": "number" },
+        "offenseCount": { "type": "number" },
+        "offenseStatus": { "type": "string" }
+      },
+      "required": ["uid", "nickname", "gender"]
+    },
+    "UserReport": {
+      "title": "UserReport",
+      "description": "Moderator ticket report details",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "reportedUserNickname": { "type": "string" },
+        "reportedUserId": { "type": "string" },
+        "reporterNickname": { "type": "string" },
+        "reason": { "type": "string" },
+        "evidence": { "type": "array" },
+        "timestamp": { "type": "string" },
+        "status": { "type": "string" }
+      },
+      "required": ["id", "reportedUserId", "reportedUserNickname", "reason", "status"]
+    },
+    "Post": {
+      "title": "Post",
+      "description": "Anonymous community bulletin post",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "roomId": { "type": "string" },
+        "authorNickname": { "type": "string" },
+        "authorAvatar": { "type": "string" },
+        "authorTrustScore": { "type": "number" },
+        "authorVoiceVerified": { "type": "boolean" },
+        "content": { "type": "string" },
+        "timestamp": { "type": "string" }
+      },
+      "required": ["id", "roomId", "authorNickname", "content", "timestamp"]
+    },
+    "ChatRoom": {
+      "title": "ChatRoom",
+      "description": "WhatsApp style deterministic chat room between two users",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "uids": { "type": "array" },
+        "lastMessage": { "type": "string" },
+        "lastMessageAt": { "type": "string" },
+        "startedAt": { "type": "string" },
+        "user1": { "type": "object" },
+        "user2": { "type": "object" }
+      },
+      "required": ["id", "uids", "lastMessageAt", "startedAt"]
+    },
+    "ChatMessage": {
+      "title": "ChatMessage",
+      "description": "Individual direct message inside a chatroom",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "senderId": { "type": "string" },
+        "senderNickname": { "type": "string" },
+        "content": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "moderated": { "type": "boolean" },
+        "isVoice": { "type": "boolean" },
+        "voiceDuration": { "type": "number" }
+      },
+      "required": ["id", "senderId", "senderNickname", "content", "timestamp", "moderated"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Storage for registered user profile profiles."
+    },
+    "/reports/{reportId}": {
+      "schema": "UserReport",
+      "description": "Storage for safety reports filed by members."
+    },
+    "/posts/{postId}": {
+      "schema": "Post",
+      "description": "Storage for posts in different discussion lobbies."
+    },
+    "/chats/{chatRoomId}": {
+      "schema": "ChatRoom",
+      "description": "Unified storage for WhatsApp style private messages."
+    },
+    "/chats/{chatRoomId}/messages/{messageId}": {
+      "schema": "ChatMessage",
+      "description": "Chronological direct messages within a chat."
+    }
+  }
+}

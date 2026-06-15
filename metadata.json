@@ -1,0 +1,6 @@
+{
+  "name": "Suno - Safe Anonymous Chat",
+  "description": "A high-security, safe, and respectful anonymous coversation platform featuring real-time AI moderation, interest-based pairing, support groups, and a 10-minute preview conversation model with payment options.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

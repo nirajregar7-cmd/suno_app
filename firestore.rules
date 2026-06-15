@@ -1,0 +1,112 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 1. Global Catch-all Safety Net (Default Deny)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- REUSABLE SECURITY PRIMITIVES & HELPERS ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && (request.auth.uid == userId || userId.startsWith('peer_'));
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        ("email" in request.auth.token && request.auth.token.email == "nirajregar7@gmail.com") ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         "isAdmin" in get(/databases/$(database)/documents/users/$(request.auth.uid)).data &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true)
+      );
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // Validation validation blueprint helpers
+    function isValidUser(data) {
+      return data.uid is string && 
+             (data.uid == request.auth.uid || data.uid.startsWith('peer_')) &&
+             data.nickname is string && data.nickname.size() <= 60 &&
+             data.gender is string && data.gender.size() <= 30;
+    }
+
+    function isValidReport(data) {
+      return data.id is string && data.id.size() <= 128 &&
+             data.reportedUserNickname is string && data.reportedUserNickname.size() <= 60 &&
+             data.reportedUserId is string && data.reportedUserId.size() <= 128 &&
+             data.reason is string && data.reason.size() <= 100;
+    }
+
+    function isValidPost(data) {
+      return data.id is string && data.id.size() <= 128 &&
+             data.roomId is string && data.roomId.size() <= 60 &&
+             data.authorNickname is string && data.authorNickname.size() <= 60 &&
+             data.content is string && data.content.size() <= 5000;
+    }
+
+    // --- COLLECTION RULE GROUPS ---
+
+    // 0. CONNECTIVITY TEST COLLECTION
+    match /test/{docId} {
+      allow read: if true;
+    }
+
+    // 1. USERS COLLECTION
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isOwner(userId) && isValidUser(incoming()) && (!("isAdmin" in incoming()) || incoming().isAdmin != true || isAdmin());
+      allow update: if isSignedIn() && isOwner(userId) && isValidUser(incoming()) && 
+                    (incoming().diff(existing()).affectedKeys().hasOnly([
+                      'nickname', 'avatar', 'ageRange', 'gender', 'city', 'country', 'language', 
+                      'interests', 'bio', 'trustScore', 'offenseCount', 'offenseStatus', 
+                      'phoneNumber', 'email', 'safetySettings', 'voiceVerified', 'voiceVerification', 'paymentDetails'
+                    ]) || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    // 2. REPORTS COLLECTION
+    match /reports/{reportId} {
+      allow list, get, delete: if isAdmin();
+      allow create: if isSignedIn() && isValidId(reportId) && isValidReport(incoming());
+      allow update: if isAdmin() && isValidReport(incoming());
+    }
+
+    // 3. COMMUNITY POSTS COLLECTION
+    match /posts/{postId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(postId) && isValidPost(incoming());
+      allow update: if isSignedIn() && (existing().authorNickname == request.auth.uid || isAdmin() || incoming().diff(existing()).affectedKeys().hasOnly(['poll', 'replies']));
+      allow delete: if isAdmin() || (isSignedIn() && existing().authorNickname == request.auth.uid);
+    }
+
+    // 4. CHATS COLLECTION & MESSAGES SUBCOLLECTION
+    match /chats/{chatRoomId} {
+      allow read: if isSignedIn() && (chatRoomId.matches('.*' + request.auth.uid + '.*') || (resource != null && request.auth.uid in resource.data.uids));
+      allow create: if isSignedIn() && (chatRoomId.matches('.*' + request.auth.uid + '.*') || request.auth.uid in incoming().uids);
+      allow update: if isSignedIn() && (chatRoomId.matches('.*' + request.auth.uid + '.*') || request.auth.uid in existing().uids);
+      allow delete: if isAdmin();
+
+      match /messages/{messageId} {
+        allow read: if isSignedIn() && chatRoomId.matches('.*' + request.auth.uid + '.*');
+        allow create: if isSignedIn() && chatRoomId.matches('.*' + request.auth.uid + '.*') && (incoming().senderId == request.auth.uid || incoming().senderId.startsWith('peer_'));
+        allow update: if isSignedIn() && chatRoomId.matches('.*' + request.auth.uid + '.*') && (existing().senderId == request.auth.uid || isAdmin());
+        allow delete: if isAdmin();
+      }
+    }
+  }
+}
